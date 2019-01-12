@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>证书演示</title>
+    <style>
+
+        *{
+            margin: 0px;
+            padding: 0px;
+        }
+
+        .bar{
+            height: 10%;
+            width: 100%;
+            position: fixed;
+            font-size: 30px;
+            text-align: center;
+        }
+        .op{
+            width: 100%;
+            height: 50%;
+            background: white;
+            position: absolute;
+            top: 10%;
+            border-top: gray dotted;
+            border-bottom: gray dotted;
+            border-width: 1px;
+            text-align: center;
+        }
+
+        .cert{
+            width: 100%;
+            height: 40%;
+            position: absolute;
+            background: white;
+            left: 0;
+            bottom: 0;
+
+        }
+        .in{
+            height: 15px;
+            width: 15%;
+        }
+        .button{
+            width: 15%;
+            height: 10px;
+        }
+        .button2{
+            width: 15%;
+            height: 10px;
+            position: absolute;
+            right: 40%;
+
+
+        }
+        .pem{
+            width: 100%;
+            height: 150px;
+
+        }
+        .status{
+            width: 100%;
+            height: 20px;
+        }
+
+
+    </style>
+</head>
+<body>
+
+<div class="bar">
+    证书生成演示
+</div>
+
+<div class="op">
+    <form method="get" name="factory">
+        <p class="a">
+            <br>
+            client key：<br>
+            <textarea class="pem" type="text" name="clientkey">{{.ClientKey}}</textarea>
+            <br>
+            contry    :
+            <input class="in" type="text" name="country" value="{{.Country}}">
+            locality  :
+            <input class="in" type="text" name="locality" value="{{.Locality}}">
+            province  :
+            <input class="in" type="text" name="province" value="{{.Province}}">
+            orgunit   :
+            <input class="in" type="text" name="orgunit"  value="{{.OrgUnit}}">
+            <br>
+            <br>
+            org       :
+            <input class="in" type="text" name="org" value="{{.Org}}">
+            street    :
+            <input class="in" type="text" name="street" value="{{.Street}}">
+            postalcode:
+            <input class="in" type="text" name="postalcode" value="{{.PostalCode}}">
+            commonname:
+            <input class="in" type="text" name="commonname" value="{{.CommonName}}">
+
+            <br>
+            <br>
+
+            <input class="button" type="submit" name="action" value="GEN">
+            <br>
+            <br>
+        </p>
+
+    </form>
+</div>
+
+<div class="cert">
+    <form>
+
+    <p>
+        <br>
+        客户端证书：<br>
+        <textarea class="pem" name="clientcert">{{.ClientCert}}</textarea>
+        根证书：<br>
+        <textarea class="pem" name="rootcert">{{.RootCert}}</textarea>
+        <br>
+        验证结果：
+        <input class="button2" type="submit" name="action" value="verify">
+        <textarea class="status" name="verifyresp">{{.VerifyResp}}</textarea>
+    </p>
+
+    </form>
+</div>
+
+
+</body>
+</html>
