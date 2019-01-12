@@ -1,4 +1,4 @@
 .idea
 *.pem
 *.cert
-*.crt
+#*.crt
