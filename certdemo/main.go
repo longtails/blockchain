@@ -28,7 +28,7 @@ func web() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		log.Println(err)
-		fp := path.Join("certdemo/templates", "page1.html")
+		fp := path.Join("templates", "page1.html")
 		tmpl, err := template.ParseFiles(fp)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -67,7 +67,7 @@ var profile = Profile{"",
 func register(w http.ResponseWriter, r *http.Request) {
 	//w.Write([]byte("byte byte"))
 
-	fp := path.Join("certdemo/templates", "page2.html")
+	fp := path.Join("templates", "page2.html")
 	tmpl, err := template.ParseFiles(fp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
