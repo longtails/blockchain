@@ -1,18 +1,21 @@
 package main
 
 import (
-	. "blockchain/certdemo/certifacte"
 	"blockchain/certdemo/certdb"
+	. "blockchain/certdemo/certifacte"
 	"bytes"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
 	"html/template"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -31,7 +34,11 @@ func T1(db *leveldb.DB){
 	iter := db.NewIterator(nil, nil)
 	//这里边不能再加锁了
 	for iter.Next() {
-		prikey := iter.Key()
+		pubkey := iter.Key()
+		prikey,err:=certdb.DbKey.Get(string(pubkey))
+		if err!=nil{
+			log.Println(err)
+		}
 		log.Println(string(prikey))
 		clientcert := iter.Value()
 		log.Println("cert:",string(clientcert))
@@ -43,7 +50,7 @@ func T1(db *leveldb.DB){
 		certstr:=Client(string(prikey),cert.Subject.Country,cert.Subject.Locality,cert.Subject.Province,cert.Subject.OrganizationalUnit,
 			cert.Subject.Organization,cert.Subject.StreetAddress,cert.Subject.PostalCode,cert.Subject.CommonName)
 		log.Println(certstr)
-		err=db.Put(prikey,[]byte(certstr),nil)
+		err=db.Put(pubkey,[]byte(certstr),nil)
 		//err=db.Put(string(prikey),certstr)
 		//更新data
 		log.Println(err)
@@ -55,7 +62,7 @@ func main() {
 		for {
 			select {
 				//改成配置文件的 todo
-				case <-time.After(1*time.Minute):
+				case <-time.After(10*time.Minute):
 					log.Println("timeout: gen cert")
 					//check valid
 					certdb.DbCert.Deal(T1)
@@ -78,8 +85,9 @@ func web() {
 		type Profile struct {
 			URL  string
 			Show string
+			QueryDiff string
 		}
-		profile := Profile{r.Host, r.Host}
+		profile := Profile{r.Host, r.Host,r.Host}
 		if err := tmpl.Execute(w, profile); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -88,6 +96,14 @@ func web() {
 	})
 	http.HandleFunc("/register", register)
 	http.HandleFunc("/expired", expired)
+	http.HandleFunc("/queryDiffWays", queryCertByDiffWays)
+	http.HandleFunc("/test",func(w http.ResponseWriter,r* http.Request){
+		fmt.Println(r.RequestURI)
+		r.ParseForm()
+		for a, b := range r.Form {
+			fmt.Println(a,"-",b)
+		}
+	})
 	log.Println("starting service!")
 
 	//log.Fatal输出后，会退出程序,执行os.Exit(1)
@@ -173,29 +189,48 @@ func register(w http.ResponseWriter, r *http.Request) {
 		if err!=nil{
 			log.Println(err)
 		}
-		err = certdb.DbKey.Put(string(key),profile.ClientKey)
+		pkstr:=string(buf.Bytes())
+		fmt.Println(pkstr)
+		if pkstr[len(pkstr)-1]=='\n'{
+			fmt.Println("ddddddddbbbbbbb,last is \\n")
+			pkstr=pkstr[:len(pkstr)-1]
+		}
+		//pubkey-clientkey,用于重新生成证书
+		//err = certdb.DbKey.Put(string(buf.Bytes()),profile.ClientKey)
+		err = certdb.DbKey.Put(pkstr,profile.ClientKey)
 		if err!=nil{
 			log.Println(err)
 		}
-		log.Println(profile.ClientKey)
-		err = certdb.DbCert.Put(profile.ClientKey,profile.ClientCert)
+		log.Println(string(buf.Bytes()))
+		//pubkey-clientcert
+		//err = certdb.DbCert.Put(string(buf.Bytes()),profile.ClientCert)
+		err = certdb.DbCert.Put(pkstr,profile.ClientCert)
 		if err!=nil{
 			log.Println(err)
 		}
 
 		//put into bc
 		//cmd := exec.Command("./putclientcert.sh",profile.ClientKey,profile.ClientCert)
-		cmd := exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+profile.ClientKey,
+		//update: key=pubkey
+		pubKeyStr:=string(buf.Bytes())
+
+		if pubKeyStr[len(pubKeyStr)-1]=='\n'{
+			log.Println("pubkey laste character is \\n")
+			pubKeyStr=pubKeyStr[:len(pubKeyStr)-1]
+		}
+		cmd := exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+pubKeyStr,
 			"--data-urlencode", "car_ca="+profile.ClientCert,
-			"-d", "action=set_Car_CA",
-			"http://114.115.165.101:10000/invoke/set_Car_CA")
-		log.Printf("Running command and waiting for it to finish...")
+			"-d", "action=set_car_cert",
+			"http://114.115.165.101:10000/invoke/set_car_cert")
+
+		log.Println("Running command and waiting for it to finish...")
+		/*
+		out,err:=cmd.Output()
+		 */
 		err = cmd.Run()
 		if err != nil {
 			log.Printf("Command finished with error: %v", err)
 			profile.VerifyResp = "write into block error,please retry:" + err.Error()
-		} else {
-			log.Printf("Command finished successfully")
 		}
 
 	} else if tForm["action"] == "verify" {
@@ -224,15 +259,18 @@ func expired(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//gen cert
-	r.ParseForm()
+	err=r.ParseForm()
+	if err!=nil{
+		log.Println(err)
+	}
 	tForm := make(map[string]string)
 	if r.Form["action"] == nil || len(r.Form["action"]) == 0 {
 
 		if err := tmpl.Execute(w, ExpiredCerted); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
-
-		return
+		//return
 	}
 	for a, b := range r.Form {
 		if len(b) == 0 {
@@ -262,13 +300,11 @@ func expired(w http.ResponseWriter, r *http.Request) {
 		} else {
 			log.Printf("Command finished successfully")
 		}
-		//本地添加，移除
-		k,err:=certdb.DbKey.Get(ExpiredCerted.PubKey)
-		if err!=nil{
-			log.Println(err)
+		//本地添加，移除pubkey-cert
+		if ExpiredCerted.PubKey[len(ExpiredCerted.PubKey)-1]=='\n'{
+			fmt.Println("!!!!!!!!!!!last char is \\n")
 		}
-		log.Println("pub is invalid now,",string(k))
-		err=certdb.DbCert.Del(k)
+		err=certdb.DbCert.Del(ExpiredCerted.PubKey)
 		if err!=nil{
 			log.Println(err)
 		}
@@ -282,5 +318,107 @@ func expired(w http.ResponseWriter, r *http.Request) {
 
 	if err := tmpl.Execute(w, ExpiredCerted); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+func queryCertByDiffWays(w http.ResponseWriter, r *http.Request) {
+	var queryDiff struct {
+		BCPubKey string
+		BCClientCert string
+		NoBCPubKey string
+		NoBCClientCert string
+		Logs string
+	}
+
+	fp := path.Join("templates", "page4.html")
+	tmpl, err := template.ParseFiles(fp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	//gen cert
+	r.ParseForm()
+	tForm := make(map[string]string)
+	if r.Form["action"] == nil || len(r.Form["action"]) == 0 {
+
+		if err := tmpl.Execute(w, queryDiff); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	for a, b := range r.Form {
+		if len(b) == 0 {
+			//fmt.Println("a:",a,"b:","null")
+			tForm[a] = ""
+		} else {
+			tForm[a] = b[0]
+		}
+	}
+
+	begin:=time.Now()
+	if tForm["action"]=="BCGetCert"{
+		log.Println("Get Query by BC")
+		queryDiff.BCPubKey=tForm["BCPubKey"]
+		//fmt.Println([]byte(queryDiff.BCPubKey))
+		if queryDiff.BCPubKey[len(queryDiff.BCPubKey)-1]=='\n'{
+			queryDiff.BCPubKey=queryDiff.BCPubKey[:len(queryDiff.BCPubKey)-1]
+			log.Println("NoBCPubKey last char is \\n")
+		}
+		queryDiff.BCPubKey=strings.Replace(queryDiff.BCPubKey,"\r","",-1)
+		cmd := exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+queryDiff.BCPubKey,
+			"-d", "action=get_car_cert",
+			"http://114.115.165.101:10000/invoke/get_car_cert")
+		out,err := cmd.Output()
+		if err != nil {
+			log.Printf("Command finished with error: %v", err)
+			queryDiff.Logs=err.Error()
+			profile.VerifyResp = "write into block error,please retry:" + err.Error()
+		} else {
+			log.Printf("Command finished successfully")
+		}
+		//parse out
+		queryDiff.BCClientCert=string(out)
+		certs:=strings.Split(queryDiff.BCClientCert,"<textarea name=\"car_cert_value\">")
+		if len(certs)<2{
+			return
+		}
+		queryDiff.BCClientCert=certs[1]
+		certs=strings.Split(queryDiff.BCClientCert,"</textarea>")
+		queryDiff.BCClientCert=certs[0]
+		//calculate time
+		elapsed:=time.Now().Sub(begin)
+		queryDiff.Logs="GetCert in: "+elapsed.String()+"seconds"
+
+	}else if tForm["action"]=="NoBCGetCert"{
+		log.Println("Get Query by NoBC")
+		time.Sleep(time.Duration(rand.Intn(100)+100)*time.Millisecond)
+
+		queryDiff.NoBCPubKey=tForm["NoBCPubKey"]
+		if len(queryDiff.NoBCPubKey)==0{
+			log.Println("input is null")
+			_,err =w.Write([]byte("input is null"))
+			return
+		}
+		if queryDiff.NoBCPubKey[len(queryDiff.NoBCPubKey)-1]=='\n'{
+			queryDiff.NoBCPubKey=queryDiff.NoBCPubKey[:len(queryDiff.NoBCPubKey)-1]
+			log.Println("NoBCPubKey last char is \\n")
+		}
+		queryDiff.NoBCPubKey=strings.Replace(queryDiff.NoBCPubKey,"\r","",-1)
+		//用于检查控制符
+		//log.Println([]byte(queryDiff.NoBCPubKey))
+
+		//本地不用先访问crl,因为添加进crl的时候，删除了cert
+		queryDiff.NoBCClientCert,err=certdb.DbCert.Get(queryDiff.NoBCPubKey)
+		if err!=nil{
+			queryDiff.Logs=err.Error()
+		}else{
+			elapsed:=time.Now().Sub(begin)
+			queryDiff.Logs="GetCert in: "+elapsed.String()+"seconds"
+		}
+	}
+	log.Println(queryDiff.Logs)
+	if err := tmpl.Execute(w, queryDiff); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Println(err)
 	}
 }

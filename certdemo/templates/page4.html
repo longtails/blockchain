@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>对比查询</title>
+    <style>
+        *{
+            margin: 0px;
+            padding: 0px;
+        }
+        .bar{
+            height: 20%;
+            width: 100%;
+            position: fixed;
+            font-size: 50px;
+            text-align: center;
+        }
+        .op{
+            width: 100%;
+            height: 64%;
+            background: white;
+            position: absolute;
+            top: 15%;
+            border-top: gray dotted;
+            border-bottom: gray dotted;
+            border-width: 1px;
+
+        }
+        /* 用div 参数float也可以实现垂直划分*/
+        p{
+            box-sizing: border-box;
+            padding: 0px 20px; /*设置div的内边距*/
+            width: 50%; /*div等分成4部分*/
+            height: 100%;
+            float: left;
+            background-clip: content-box; /*背景色用于内容*/
+
+        }
+        .a{
+            height: 100%;
+            background: white;
+            border-right: gray dotted;
+            border-width: 1px;
+        }
+
+        .b{
+            height: 100%;
+            display: inline;
+            background: white;
+            border-right: gray dotted;
+            border-width: 1px;
+        }
+        .log{
+            width: 100%;
+            height: 16%;
+            position: fixed;
+            background: white;
+            left: 0;
+            bottom: 0;
+
+        }
+        .pubkey{
+            width: 100%;
+            height: 180px;
+        }
+        .cert{
+             width: 100%;
+             height: 180px;
+
+        }
+        .in{
+            width: 100%;
+            height: 20px;
+        }
+        .logtext{
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div class="bar">
+    对比查询
+</div>
+<div class="op">
+    <form>
+        <p class="a">
+        区块缓冲<br><br>
+        <textarea class="pubkey" name="BCPubKey">{{.BCPubKey}}</textarea>
+            <br>
+        <textarea class="cert" name="BCClientCert">{{.BCClientCert}}</textarea>
+            <br>
+        <input class="in" type="submit" name="action" value="BCGetCert">
+        <br>
+        </p>
+    </form>
+
+    <form method="post" name="NoBCQuery">
+        <p class="b">
+            无区块缓冲<br><br>
+            <textarea class="pubkey" name="NoBCPubKey">{{.NoBCPubKey}}</textarea>
+            <br>
+            <textarea class="cert" name="NoBCClientCert">{{.NoBCClientCert}}</textarea>
+            <br>
+            <input class="in" type="submit" name="action" value="NoBCGetCert">
+            <br>
+        </p>
+
+    </form>
+</div>
+
+<div class="log">
+    <textarea class="logtext">{{.Logs}}</textarea>
+</div>
+
+</body>
+</html>

@@ -2,6 +2,8 @@ package certdb
 
 import (
 	"blockchain/certdemo/certifacte"
+	"fmt"
+
 	//"blockchain/certdemo/certifacte"
 	"crypto/x509"
 	"encoding/pem"
@@ -57,6 +59,7 @@ func (cdb *CERTDB)Put(key,value string)error{
 	cdb.mux.Unlock()
 	return err
 }
+
 func (cdb *CERTDB)Get(key string)(string,error){
 	cdb.mux.Lock()
 	val,err:=cdb.db.Get([]byte(key),nil)
@@ -69,6 +72,7 @@ func (cdb *CERTDB)Del(key string)error{
 	cdb.mux.Unlock()
 	return err
 }
+
 
 
 func T1(db *leveldb.DB){
@@ -94,4 +98,18 @@ func T1(db *leveldb.DB){
 		log.Println(err)
 	}
 	iter.Release()
+}
+func (db*CERTDB)Show(){
+	iter := db.db.NewIterator(nil, nil)
+	db.mux.Lock()
+	for iter.Next(){
+		key:=iter.Key()
+		value:=iter.Value()
+		str:=string(key)
+		if str[len(str)-1]=='\n'{
+			fmt.Println("last is \\n")
+		}
+		log.Println(string(key),string(value))
+	}
+	db.mux.Unlock()
 }

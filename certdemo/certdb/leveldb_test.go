@@ -1,6 +1,7 @@
 package certdb
 
 import (
+	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
 	"log"
 	"sync"
@@ -103,5 +104,14 @@ LAYoS52/aUG9XM1uuujho68MbO7zgaxb3g==
 		t.Log(err)
 	}
 	t.Log(d)
+}
+
+func Show(db*leveldb.DB){
+	iter := db.NewIterator(nil, nil)
+	for iter.Next(){
+		key:=iter.Key()
+		value:=iter.Value()
+		fmt.Println(string(key),string(value))
+	}
 }
 
