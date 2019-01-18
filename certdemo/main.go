@@ -284,9 +284,13 @@ func expired(w http.ResponseWriter, r *http.Request) {
 	if tForm["action"]=="ADD"{
 		//put into bc todo
 		//cmd := exec.Command("./putclientcert.sh",profile.ClientKey,profile.ClientCert)
-		log.Println(tForm["PubKey"])
 		ExpiredCerted.PubKey=tForm["PubKey"]
 		ExpiredCerted.Status="invalid user"
+		if ExpiredCerted.PubKey[len(ExpiredCerted.PubKey)-1]=='\n'{
+			ExpiredCerted.PubKey=ExpiredCerted.PubKey[:len(ExpiredCerted.PubKey)-1]
+			log.Println("ExpiredCerted.Pubkey last char is \\n")
+		}
+		ExpiredCerted.PubKey=strings.Replace(ExpiredCerted.PubKey,"\r","",-1)
 		//todo  http://114.115.165.101:10000/invoke/set_car_crl
 		cmd := exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+ExpiredCerted.PubKey,
 			"--data-urlencode", "car_bad_flag="+ExpiredCerted.Status,
@@ -301,9 +305,6 @@ func expired(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Command finished successfully")
 		}
 		//本地添加，移除pubkey-cert
-		if ExpiredCerted.PubKey[len(ExpiredCerted.PubKey)-1]=='\n'{
-			fmt.Println("!!!!!!!!!!!last char is \\n")
-		}
 		err=certdb.DbCert.Del(ExpiredCerted.PubKey)
 		if err!=nil{
 			log.Println(err)
