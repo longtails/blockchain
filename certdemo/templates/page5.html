@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>证书演示</title>
+    <title>客户端公私钥</title>
     <style>
 
         *{
@@ -33,36 +33,29 @@
             height: 10px;
         }
        .pem{
-            width: 100%;
+            width: 80%;
             height: 150px;
 
-        }
-        .status{
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 150px;
         }
     </style>
 </head>
 <body>
 
 <div class="bar">
-    证书生成演示-添加过期证书
+    证书生成演示-客户端公私钥
 </div>
 
 <div class="op">
-    <form method="get" name="crl">
+    <form method="get" name="clientkey">
         <p class="a">
             <br>
-            输入过期证书的公钥：<br>
+            客户端私钥：<br>
+            <textarea class="pem" type="text" name="PriKey">{{.PriKey}}</textarea>
+            <br>
+            客户端公钥：<br>
             <textarea class="pem" type="text" name="PubKey">{{.PubKey}}</textarea>
             <br>
-
-            <input class="button" type="submit" name="action" value="ADD">
-            <br>
-            <textarea class="status" type="text" name="status">{{.Status}}</textarea>
+            <input class="button" type="submit" name="action" value="GenClientKey">
             <br>
         </p>
 

@@ -1,6 +1,18 @@
-<h1>Hello </h1>
-
+<h1>CA演示-导航页面 </h1>
+<br>
+1. 生成客户端的公私钥，可通过如下链接获取一个样例
+<br>
+<p>Visit <a href="http://{{.URL}}/clientKey">example:client private & public key</a> to test! </p>
+<br>
+2. 使用客户端的私钥注册，并生成证书，数据会写入区块
+<br>
 <p>Visit <a href="http://{{.URL}}/register">register</a> to test! </p>
-<p>Visit <a href="http://{{.URL}}/expired">add cert to crl</a> to test! </p>
+<br>
+3. 通过客户端公钥查询证书，这里有两种查询路径：通过区块缓冲层或者直接从CA获取
+<br>
 <p>Visit <a href="http://{{.URL}}/queryDiffWays">query cert by diff ways</a> to test! </p>
+<br>
+4. 通过客户端的公钥，将证书添加到CRL中
+<br>
+<p>Visit <a href="http://{{.URL}}/expired">add cert to crl</a> to test! </p>
 

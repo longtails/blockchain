@@ -9,7 +9,7 @@
             padding: 0px;
         }
         .bar{
-            height: 20%;
+            height: 18%;
             width: 100%;
             position: fixed;
             font-size: 50px;
@@ -52,7 +52,7 @@
         }
         .log{
             width: 100%;
-            height: 16%;
+            height: 12%;
             position: fixed;
             background: white;
             left: 0;
@@ -61,11 +61,11 @@
         }
         .pubkey{
             width: 100%;
-            height: 180px;
+            height: 170px;
         }
         .cert{
              width: 100%;
-             height: 180px;
+             height: 170px;
 
         }
         .in{
@@ -87,23 +87,28 @@
     <form>
         <p class="a">
         区块缓冲<br><br>
+        输入客户端公钥
         <textarea class="pubkey" name="BCPubKey">{{.BCPubKey}}</textarea>
-            <br>
-        <textarea class="cert" name="BCClientCert">{{.BCClientCert}}</textarea>
-            <br>
-        <input class="in" type="submit" name="action" value="BCGetCert">
         <br>
+        查询结果(证书)
+        <textarea class="cert" name="BCClientCert">{{.BCClientCert}}</textarea>
+        <br>
+        <input class="in" type="submit" name="action" value="BCGetCert">
+        <br><br>
         </p>
     </form>
 
     <form method="post" name="NoBCQuery">
         <p class="b">
             无区块缓冲<br><br>
+            输入客户端公钥
             <textarea class="pubkey" name="NoBCPubKey">{{.NoBCPubKey}}</textarea>
             <br>
+            查询结果(证书)
             <textarea class="cert" name="NoBCClientCert">{{.NoBCClientCert}}</textarea>
             <br>
             <input class="in" type="submit" name="action" value="NoBCGetCert">
+            <br>
             <br>
         </p>
 

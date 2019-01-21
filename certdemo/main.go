@@ -4,6 +4,9 @@ import (
 	"blockchain/certdemo/certdb"
 	. "blockchain/certdemo/certifacte"
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	crand "crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -19,6 +22,15 @@ import (
 	"time"
 )
 
+
+var ExpiredCerted struct{
+	PubKey string
+	Status string
+}
+var ClientKey struct{
+	PriKey string
+	PubKey string
+}
 func init() {
 	f, err := os.Open("cert.crt")
 	defer f.Close()
@@ -62,7 +74,7 @@ func main() {
 		for {
 			select {
 				//改成配置文件的 todo
-				case <-time.After(10*time.Minute):
+				case <-time.After(30*time.Minute):
 					log.Println("timeout: gen cert")
 					//check valid
 					certdb.DbCert.Deal(T1)
@@ -95,6 +107,7 @@ func web() {
 		//w.Write([]byte(data))
 	})
 	http.HandleFunc("/register", register)
+	http.HandleFunc("/clientKey", clientKey)
 	http.HandleFunc("/expired", expired)
 	http.HandleFunc("/queryDiffWays", queryCertByDiffWays)
 	http.HandleFunc("/test",func(w http.ResponseWriter,r* http.Request){
@@ -192,7 +205,6 @@ func register(w http.ResponseWriter, r *http.Request) {
 		pkstr:=string(buf.Bytes())
 		fmt.Println(pkstr)
 		if pkstr[len(pkstr)-1]=='\n'{
-			fmt.Println("ddddddddbbbbbbb,last is \\n")
 			pkstr=pkstr[:len(pkstr)-1]
 		}
 		//pubkey-clientkey,用于重新生成证书
@@ -201,7 +213,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 		if err!=nil{
 			log.Println(err)
 		}
-		log.Println(string(buf.Bytes()))
+		//log.Println(string(buf.Bytes()))
 		//pubkey-clientcert
 		//err = certdb.DbCert.Put(string(buf.Bytes()),profile.ClientCert)
 		err = certdb.DbCert.Put(pkstr,profile.ClientCert)
@@ -215,7 +227,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 		pubKeyStr:=string(buf.Bytes())
 
 		if pubKeyStr[len(pubKeyStr)-1]=='\n'{
-			log.Println("pubkey laste character is \\n")
+			//log.Println("pubkey laste character is \\n")
 			pubKeyStr=pubKeyStr[:len(pubKeyStr)-1]
 		}
 		cmd := exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+pubKeyStr,
@@ -246,9 +258,71 @@ func register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
-var ExpiredCerted struct{
-	PubKey string
-	Status string
+
+
+type ecdsaGen struct {
+	curve elliptic.Curve
+}
+func (e *ecdsaGen) KeyGen() (key *ecdsa.PrivateKey, err error) {
+	privKey, err := ecdsa.GenerateKey(e.curve, crand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	return privKey, nil
+}
+func clientKey(w http.ResponseWriter, r *http.Request) {
+	fp := path.Join("templates", "page5.html")
+	tmpl, err := template.ParseFiles(fp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	//gen cert
+	err=r.ParseForm()
+	if err!=nil{
+		log.Println(err)
+	}
+	tForm := make(map[string]string)
+	if r.Form["action"] == nil || len(r.Form["action"]) == 0 {
+
+		if err := tmpl.Execute(w, ClientKey); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		//return
+	}
+	for a, b := range r.Form {
+		if len(b) == 0 {
+			//fmt.Println("a:",a,"b:","null")
+			tForm[a] = ""
+		} else {
+			tForm[a] = b[0]
+		}
+	}
+	if tForm["action"]=="GenClientKey"{
+		if len(ClientKey.PriKey)==0{
+			//私钥
+			e2 := &ecdsaGen{curve: elliptic.P256()}
+			clientPriKey,_ := e2.KeyGen()
+			clientPriKeyEncode, _ := x509.MarshalECPrivateKey(clientPriKey)
+			bufKey := new(bytes.Buffer)
+			err =pem.Encode(bufKey, &pem.Block{Type: "EC PRIVATE KEY", Bytes: clientPriKeyEncode})
+			ClientKey.PriKey=string(bufKey.Bytes())
+			//公钥
+			clientPubKey := clientPriKey.Public()
+			clientPubKeyEncode, _ := x509.MarshalPKIXPublicKey(clientPubKey)
+			bufKey.Reset()
+			err =pem.Encode(bufKey, &pem.Block{Type: "EC Public KEY", Bytes: clientPubKeyEncode})
+			ClientKey.PubKey=string(bufKey.Bytes())
+		}
+		tForm["PubKey"]=ClientKey.PubKey
+		tForm["PriKey"]=ClientKey.PriKey
+		//本地添加，移除pubkey-cert
+	}
+	if err := tmpl.Execute(w, ClientKey); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 func expired(w http.ResponseWriter, r *http.Request) {
 	fp := path.Join("templates", "page3.html")
@@ -295,7 +369,7 @@ func expired(w http.ResponseWriter, r *http.Request) {
 		cmd := exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+ExpiredCerted.PubKey,
 			"--data-urlencode", "car_bad_flag="+ExpiredCerted.Status,
 			"-d", "action=set_Car_CA",
-		    "http://114.115.165.101:10000/invoke/set_car_crl")
+			"http://114.115.165.101:10000/invoke/set_car_crl")
 		log.Printf("Running command and waiting for it to finish...")
 		err := cmd.Run()
 		if err != nil {
