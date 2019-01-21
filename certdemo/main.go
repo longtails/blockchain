@@ -26,11 +26,22 @@ import (
 var ExpiredCerted struct{
 	PubKey string
 	Status string
+	URL string
 }
 var ClientKey struct{
 	PriKey string
 	PubKey string
+	URL string
 }
+
+type Profile struct {
+	ClientKey                                         string
+	Country, Locality, Province, OrgUnit, Org, Street string
+	PostalCode, CommonName                            string
+	ClientCert, RootCert, VerifyResp                  string
+	URL string
+}
+
 func init() {
 	f, err := os.Open("cert.crt")
 	defer f.Close()
@@ -84,6 +95,9 @@ func main() {
 	web()
 }
 func web() {
+	fs := http.FileServer(http.Dir("static"))
+	http.Handle("/fs", fs)
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
 	//匿名函数注册路由
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
@@ -123,20 +137,16 @@ func web() {
 	log.Fatal(http.ListenAndServe(":4000", nil))
 }
 
-type Profile struct {
-	ClientKey                                         string
-	Country, Locality, Province, OrgUnit, Org, Street string
-	PostalCode, CommonName                            string
-	ClientCert, RootCert, VerifyResp                  string
-}
 
 var profile = Profile{"",
 	"", "", "", "",
 	"", "", "", "",
-	"", "", ""}
+	"", "", "",""}
 
 func register(w http.ResponseWriter, r *http.Request) {
 	//w.Write([]byte("byte byte"))
+	profile.URL=r.Host
+	fmt.Println("register")
 
 	fp := path.Join("templates", "page2.html")
 	tmpl, err := template.ParseFiles(fp)
@@ -271,6 +281,7 @@ func (e *ecdsaGen) KeyGen() (key *ecdsa.PrivateKey, err error) {
 	return privKey, nil
 }
 func clientKey(w http.ResponseWriter, r *http.Request) {
+	ClientKey.URL=r.Host
 	fp := path.Join("templates", "page5.html")
 	tmpl, err := template.ParseFiles(fp)
 	if err != nil {
@@ -325,6 +336,7 @@ func clientKey(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func expired(w http.ResponseWriter, r *http.Request) {
+	ExpiredCerted.URL=r.Host
 	fp := path.Join("templates", "page3.html")
 	tmpl, err := template.ParseFiles(fp)
 	if err != nil {
@@ -402,7 +414,9 @@ func queryCertByDiffWays(w http.ResponseWriter, r *http.Request) {
 		NoBCPubKey string
 		NoBCClientCert string
 		Logs string
+		URL string
 	}
+	queryDiff.URL=r.Host
 
 	fp := path.Join("templates", "page4.html")
 	tmpl, err := template.ParseFiles(fp)
@@ -440,10 +454,33 @@ func queryCertByDiffWays(w http.ResponseWriter, r *http.Request) {
 			log.Println("NoBCPubKey last char is \\n")
 		}
 		queryDiff.BCPubKey=strings.Replace(queryDiff.BCPubKey,"\r","",-1)
-		cmd := exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+queryDiff.BCPubKey,
+
+		//pre: query crl
+		cmd:= exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+queryDiff.BCPubKey,
 			"-d", "action=get_car_cert",
 			"http://114.115.165.101:10000/invoke/get_car_cert")
 		out,err := cmd.Output()
+		if err != nil {
+			log.Printf("Command finished with error: %v", err)
+			queryDiff.Logs=err.Error()
+			profile.VerifyResp = "write into block error,please retry:" + err.Error()
+		} else {
+			log.Printf("Command finished successfully")
+		}
+		//parse out
+		queryDiff.BCClientCert=string(out)
+		status :=strings.Split(queryDiff.BCClientCert,"<textarea name=\"car_cert_value\">")
+		if len(status)<2{
+			return
+		}
+
+
+
+
+		cmd = exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+queryDiff.BCPubKey,
+			"-d", "action=get_car_cert",
+			"http://114.115.165.101:10000/invoke/get_car_cert")
+		out,err = cmd.Output()
 		if err != nil {
 			log.Printf("Command finished with error: %v", err)
 			queryDiff.Logs=err.Error()
