@@ -146,7 +146,6 @@ var profile = Profile{"",
 func register(w http.ResponseWriter, r *http.Request) {
 	//w.Write([]byte("byte byte"))
 	profile.URL=r.Host
-	fmt.Println("register")
 
 	fp := path.Join("templates", "page2.html")
 	tmpl, err := template.ParseFiles(fp)
@@ -311,26 +310,42 @@ func clientKey(w http.ResponseWriter, r *http.Request) {
 			tForm[a] = b[0]
 		}
 	}
-	if tForm["action"]=="GenClientKey"{
-		if len(ClientKey.PriKey)==0{
-			//私钥
-			e2 := &ecdsaGen{curve: elliptic.P256()}
-			clientPriKey,_ := e2.KeyGen()
-			clientPriKeyEncode, _ := x509.MarshalECPrivateKey(clientPriKey)
-			bufKey := new(bytes.Buffer)
-			err =pem.Encode(bufKey, &pem.Block{Type: "EC PRIVATE KEY", Bytes: clientPriKeyEncode})
-			ClientKey.PriKey=string(bufKey.Bytes())
-			//公钥
-			clientPubKey := clientPriKey.Public()
-			clientPubKeyEncode, _ := x509.MarshalPKIXPublicKey(clientPubKey)
-			bufKey.Reset()
-			err =pem.Encode(bufKey, &pem.Block{Type: "EC Public KEY", Bytes: clientPubKeyEncode})
-			ClientKey.PubKey=string(bufKey.Bytes())
-		}
-		tForm["PubKey"]=ClientKey.PubKey
-		tForm["PriKey"]=ClientKey.PriKey
-		//本地添加，移除pubkey-cert
+	//启动程序默认产生一个key
+	if len(ClientKey.PriKey)==0{
+		//私钥
+		e2 := &ecdsaGen{curve: elliptic.P256()}
+		clientPriKey,_ := e2.KeyGen()
+		clientPriKeyEncode, _ := x509.MarshalECPrivateKey(clientPriKey)
+		bufKey := new(bytes.Buffer)
+		err =pem.Encode(bufKey, &pem.Block{Type: "EC PRIVATE KEY", Bytes: clientPriKeyEncode})
+		ClientKey.PriKey=string(bufKey.Bytes())
+		//公钥
+		clientPubKey := clientPriKey.Public()
+		clientPubKeyEncode, _ := x509.MarshalPKIXPublicKey(clientPubKey)
+		bufKey.Reset()
+		err =pem.Encode(bufKey, &pem.Block{Type: "EC Public KEY", Bytes: clientPubKeyEncode})
+		ClientKey.PubKey=string(bufKey.Bytes())
 	}
+	//点击Gen可重新产生一个key
+	if tForm["action"]=="ReGenClientKey"{
+		//私钥
+		e2 := &ecdsaGen{curve: elliptic.P256()}
+		clientPriKey,_ := e2.KeyGen()
+		clientPriKeyEncode, _ := x509.MarshalECPrivateKey(clientPriKey)
+		bufKey := new(bytes.Buffer)
+		err =pem.Encode(bufKey, &pem.Block{Type: "EC PRIVATE KEY", Bytes: clientPriKeyEncode})
+		ClientKey.PriKey=string(bufKey.Bytes())
+		//公钥
+		clientPubKey := clientPriKey.Public()
+		clientPubKeyEncode, _ := x509.MarshalPKIXPublicKey(clientPubKey)
+		bufKey.Reset()
+		err =pem.Encode(bufKey, &pem.Block{Type: "EC Public KEY", Bytes: clientPubKeyEncode})
+		ClientKey.PubKey=string(bufKey.Bytes())
+	}
+	tForm["PubKey"]=ClientKey.PubKey
+	tForm["PriKey"]=ClientKey.PriKey
+	//本地添加，移除pubkey-cert
+
 	if err := tmpl.Execute(w, ClientKey); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -448,6 +463,7 @@ func queryCertByDiffWays(w http.ResponseWriter, r *http.Request) {
 	if tForm["action"]=="BCGetCert"{
 		log.Println("Get Query by BC")
 		queryDiff.BCPubKey=tForm["BCPubKey"]
+
 		//fmt.Println([]byte(queryDiff.BCPubKey))
 		if queryDiff.BCPubKey[len(queryDiff.BCPubKey)-1]=='\n'{
 			queryDiff.BCPubKey=queryDiff.BCPubKey[:len(queryDiff.BCPubKey)-1]
@@ -455,10 +471,12 @@ func queryCertByDiffWays(w http.ResponseWriter, r *http.Request) {
 		}
 		queryDiff.BCPubKey=strings.Replace(queryDiff.BCPubKey,"\r","",-1)
 
+
+
 		//pre: query crl
 		cmd:= exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+queryDiff.BCPubKey,
-			"-d", "action=get_car_cert",
-			"http://114.115.165.101:10000/invoke/get_car_cert")
+			"-d", "action=get_car_crl",
+			"http://114.115.165.101:10000/invoke/get_car_crl")
 		out,err := cmd.Output()
 		if err != nil {
 			log.Printf("Command finished with error: %v", err)
@@ -468,39 +486,48 @@ func queryCertByDiffWays(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Command finished successfully")
 		}
 		//parse out
-		queryDiff.BCClientCert=string(out)
-		status :=strings.Split(queryDiff.BCClientCert,"<textarea name=\"car_cert_value\">")
+		crlout:=string(out)
+		// <textarea name="car_crl_value"></textarea>
+		status :=strings.Split(crlout,"<textarea name=\"car_crl_value\">")
 		if len(status)<2{
 			return
 		}
+		crlout=status[1]
+		status=strings.Split(crlout,"</textarea>")
+		//已经在crl中
+		if len(status)<2{
+			elapsed:=time.Now().Sub(begin)
+			queryDiff.Logs="err: no car_crl_value"+"\nin: "+elapsed.String()+"seconds"
+		}else if status[0]=="invalid user"{
+			elapsed:=time.Now().Sub(begin)
+			queryDiff.Logs="this cert is  invalid & in crl"+"\nin: "+elapsed.String()+"seconds"
+		}else{
+			//query cert
+			cmd = exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+queryDiff.BCPubKey,
+				"-d", "action=get_car_cert",
+				"http://114.115.165.101:10000/invoke/get_car_cert")
+			out,err = cmd.Output()
+			if err != nil {
+				log.Printf("Command finished with error: %v", err)
+				queryDiff.Logs=err.Error()
+				profile.VerifyResp = "write into block error,please retry:" + err.Error()
+			} else {
+				log.Printf("Command finished successfully")
+			}
+			//parse out
+			queryDiff.BCClientCert=string(out)
+			certs:=strings.Split(queryDiff.BCClientCert,"<textarea name=\"car_cert_value\">")
+			if len(certs)<2{
+				return
+			}
+			queryDiff.BCClientCert=certs[1]
+			certs=strings.Split(queryDiff.BCClientCert,"</textarea>")
+			queryDiff.BCClientCert=certs[0]
+			//calculate time
+			elapsed:=time.Now().Sub(begin)
+			queryDiff.Logs="GetCert in: "+elapsed.String()+"seconds"
 
-
-
-
-		cmd = exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+queryDiff.BCPubKey,
-			"-d", "action=get_car_cert",
-			"http://114.115.165.101:10000/invoke/get_car_cert")
-		out,err = cmd.Output()
-		if err != nil {
-			log.Printf("Command finished with error: %v", err)
-			queryDiff.Logs=err.Error()
-			profile.VerifyResp = "write into block error,please retry:" + err.Error()
-		} else {
-			log.Printf("Command finished successfully")
 		}
-		//parse out
-		queryDiff.BCClientCert=string(out)
-		certs:=strings.Split(queryDiff.BCClientCert,"<textarea name=\"car_cert_value\">")
-		if len(certs)<2{
-			return
-		}
-		queryDiff.BCClientCert=certs[1]
-		certs=strings.Split(queryDiff.BCClientCert,"</textarea>")
-		queryDiff.BCClientCert=certs[0]
-		//calculate time
-		elapsed:=time.Now().Sub(begin)
-		queryDiff.Logs="GetCert in: "+elapsed.String()+"seconds"
-
 	}else if tForm["action"]=="NoBCGetCert"{
 		log.Println("Get Query by NoBC")
 		time.Sleep(time.Duration(rand.Intn(100)+100)*time.Millisecond)
