@@ -2,6 +2,7 @@ package main
 
 import (
 	"blockchain/certdemo/certdb"
+	"blockchain/certdemo/push"
 	. "blockchain/certdemo/certifacte"
 	"bytes"
 	"crypto/ecdsa"
@@ -92,6 +93,8 @@ func main() {
 			}
 		}
 	})
+	//启动消息推送服务
+	go push.PushServer()
 	web()
 }
 func web() {
@@ -132,7 +135,6 @@ func web() {
 		}
 	})
 	log.Println("starting service!")
-
 	//log.Fatal输出后，会退出程序,执行os.Exit(1)
 	log.Fatal(http.ListenAndServe(":4000", nil))
 }

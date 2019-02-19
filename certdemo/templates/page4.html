@@ -95,11 +95,43 @@
                 </div>
                 <div class="log panel panel-default" style="padding: 5px;text-align: center;">
                     <label>运行日志</label><br>
-                    <textarea class="form-control">{{.Logs}}</textarea>
+                    <textarea class="form-control" name="log">{{.Logs}}</textarea>
                 </div>
             </div>
         </div>
     </div>
+
+    <script>
+        //push msg to log area
+        var wsuri = "ws://127.0.0.1:12345/ws";
+        var token = "queryLog";
+        var e = "queryLog";
+
+        var insert = "\nStart connecting " + wsuri + "\n";
+        document.getElementsByName("log")[0].innerHTML += insert;
+
+        var sock = new WebSocket(wsuri);
+        sock.onopen = function () {
+            console.log("connected to " + wsuri);
+            var insert = "Connected to " + wsuri+"\n" ;
+            document.getElementsByName("log")[0].innerHTML += insert;
+
+            sock.send("{\"token\": \"" + token + "\", \"event\": \"" + e + "\"}")
+            insert = "Register message sent\n";
+            document.getElementsByName("log")[0].innerHTML += insert;
+        };
+        sock.onclose = function (e) {
+            console.log("connection closed (" + e.code + ")");
+            var insert = "Connection be closed\n";
+            document.getElementsByName("log")[0].innerHTML += insert;
+        };
+        sock.onmessage = function (e) {
+            console.log("Receive message: " + e.data);
+
+            var insert = "Receive: " + e.data + "\n";
+            document.getElementsByName("log")[0].innerHTML += insert;
+        };
+    </script>
     <!-- jQuery (Bootstrap 的所有 JavaScript 插件都依赖 jQuery，所以必须放在前边) -->
     <script src="https://cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
     <!-- 加载 Bootstrap 的所有 JavaScript 插件。 -->

@@ -1,4 +1,4 @@
-package main
+package test
 
 import (
 	"blockchain/certdemo/certdb"
@@ -9,13 +9,11 @@ import (
 )
 
 func main() {
-
-	fmt.Println("test exp")
-	//TestExpired()
-	TestGetAll()
+	fmt.Println("test expired ")
+	Expired()
 }
 
-func TestSelect() {
+func ExpiredSelect() {
 	for {
 		select {
 		//改成配置文件的 todo
@@ -24,11 +22,11 @@ func TestSelect() {
 		}
 	}
 }
-func TestExpired() {
+func Expired() {
 	certdb.DbCert.Deal(certdb.T1)
 }
 
-func TestGetAll() {
+func GetAll() {
 	certdb.DbCert.Show()
 	return
 	//需要只读模式
@@ -51,7 +49,7 @@ func TestGetAll() {
 	}
 	iter.Release()
 }
-func TestGet() {
+func Get() {
 	cert, err := certdb.DbCert.Get(`-----BEGIN EC Public KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvJWnkVzQu5YwW+demNt9Zv8n5TAo
 VOBq4Q3YrnPJ7UWEwmSxmWpWSZLJb2Cc+oAbUsGe1NaeUkFs/+P94po/vg==
