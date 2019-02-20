@@ -19,7 +19,9 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -95,6 +97,7 @@ func main() {
 	})
 	//启动消息推送服务
 	go push.PushServer()
+	go queryCronJob()
 	web()
 }
 func web() {
@@ -126,7 +129,8 @@ func web() {
 	http.HandleFunc("/register", register)
 	http.HandleFunc("/clientKey", clientKey)
 	http.HandleFunc("/expired", expired)
-	http.HandleFunc("/queryDiffWays", queryCertByDiffWays)
+	//http.HandleFunc("/queryDiffWays", queryCertByDiffWays)
+	http.HandleFunc("/queryDiffWays", queryCertByDiffWaysWithMulit)
 	http.HandleFunc("/test",func(w http.ResponseWriter,r* http.Request){
 		fmt.Println(r.RequestURI)
 		r.ParseForm()
@@ -556,6 +560,230 @@ func queryCertByDiffWays(w http.ResponseWriter, r *http.Request) {
 			elapsed:=time.Now().Sub(begin)
 			queryDiff.Logs="GetCert in: "+elapsed.String()+"seconds"
 		}
+	}
+	log.Println(queryDiff.Logs)
+	if err := tmpl.Execute(w, queryDiff); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Println(err)
+	}
+}
+
+type QueryByDiff struct{
+	BCPubKey string
+	BCClientCert string
+	NoBCPubKey string
+	NoBCClientCert string
+	Logs string
+	URL string
+
+}
+var conQueryBC =make(chan []string)
+var conQueryNoBC =make(chan []string)
+func queryCronHelper(params []string){
+	total,err1:=strconv.Atoi(params[0])
+	con,err2:=strconv.Atoi(params[1])
+	topic:=params[2]
+	if err1!=nil||err2!=nil||con<=0{
+		push.Push("input error")
+		return
+	}
+	keys:=certdb.DbKey.GetSomeKeys(total)
+	push.Push("Concurrent access certs")
+	wg := sync.WaitGroup{}
+	wg.Add(con)
+	for i:=0;i<con;i++{
+		c:=total/con
+		if total%con>0{
+			c++
+		}
+		go func(r,n int){
+			for j:=0;j<n&&r*c+j<total;j++{
+				key:=keys[r*c+j]
+				if topic=="bc"{
+					queryByBc(key)
+				}else{
+					queryByNoBc(key)
+				}
+			}
+			wg.Done()
+			//这就是书上说的那个陷阱
+			//push.Push(topic+":"+"con"+strconv.Itoa(i)+" is done")
+		}(i,c) //确实，这里go func中循环变动的i，只能通过参数传过去
+		push.Push(topic+":"+"con"+strconv.Itoa(i)+" is done")
+		//time.Sleep(2*time.Second)
+	}
+	wg.Wait()
+	push.Push(topic+":all jobs is done")
+	log.Println("done")
+}
+func queryCronJob(){
+	log.Println("启动常驻并发任务")
+	for{
+		select{
+			case bc:=<-conQueryBC:
+				fmt.Println(bc)
+				time.Sleep(3*time.Second)
+				push.Push("init jobs by bc")
+				//query and timing
+				begin:=time.Now()
+				queryCronHelper(bc)
+				elapsed:=time.Now().Sub(begin)
+				time.Sleep(2*time.Second)
+				push.Push("jobs done by bc")
+				//并发调用
+				logs:=" spend "+elapsed.String()
+				push.PushWithEnd(bc[2]+":"+logs,"\n")
+
+			case nobc:=<-conQueryNoBC:
+				fmt.Println(nobc)
+				time.Sleep(3*time.Second)
+				push.Push("init jobs by nobc")
+				//query and timing
+				begin:=time.Now()
+				queryCronHelper(nobc)
+				elapsed:=time.Now().Sub(begin)
+				time.Sleep(2*time.Second)
+				push.Push("jobs done by nobc")
+				//并发调用
+				logs:=" spend "+elapsed.String()
+				push.PushWithEnd(nobc[2]+":"+logs,"\n")
+		}
+	}
+}
+func queryByBc(BCPubKey string)string{
+	//fmt.Println([]byte(queryDiff.BCPubKey))
+	if BCPubKey[len(BCPubKey)-1]=='\n'{
+		BCPubKey=BCPubKey[:len(BCPubKey)-1]
+		log.Println("NoBCPubKey last char is \\n")
+	}
+	BCPubKey=strings.Replace(BCPubKey,"\r","",-1)
+
+	//pre: query crl
+	cmd:= exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+BCPubKey,
+		"-d", "action=get_car_crl",
+		"http://114.115.165.101:10000/invoke/get_car_crl")
+	out,err := cmd.Output()
+	Logs:=""
+	if err != nil {
+		log.Printf("Command finished with error: %v", err)
+		Logs=err.Error()
+		profile.VerifyResp = "write into block error,please retry:" + err.Error()
+	} else {
+		log.Printf("Command finished successfully")
+	}
+	//parse out
+	crlout:=string(out)
+	// <textarea name="car_crl_value"></textarea>
+	status :=strings.Split(crlout,"<textarea name=\"car_crl_value\">")
+	if len(status)<2{
+		return Logs
+	}
+	crlout=status[1]
+	status=strings.Split(crlout,"</textarea>")
+	//已经在crl中
+	if len(status)<2{
+		Logs="err: no car_crl_value"
+	}else if status[0]=="invalid user"{
+		Logs="this cert is  invalid & in crl"
+	}else{
+		//query cert
+		cmd = exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+BCPubKey,
+			"-d", "action=get_car_cert",
+			"http://114.115.165.101:10000/invoke/get_car_cert")
+		out,err = cmd.Output()
+		if err != nil {
+			log.Printf("Command finished with error: %v", err)
+			Logs=err.Error()
+			profile.VerifyResp = "write into block error,please retry:" + err.Error()
+		} else {
+			log.Printf("Command finished successfully")
+		}
+		//parse out
+		BCClientCert:=string(out)
+		certs:=strings.Split(BCClientCert,"<textarea name=\"car_cert_value\">")
+		if len(certs)<2{
+			return Logs
+		}
+		//得到证书
+		BCClientCert=certs[1]
+		certs=strings.Split(BCClientCert,"</textarea>")
+		BCClientCert=certs[0]
+		//calculate time
+		Logs="GetCert"
+	}
+	return Logs
+}
+
+func queryByNoBc(NoBCPubKey string)string{
+	log.Println("Get Query by NoBC")
+	if NoBCPubKey[len(NoBCPubKey)-1]=='\n'{
+		NoBCPubKey=NoBCPubKey[:len(NoBCPubKey)-1]
+		log.Println("NoBCPubKey last char is \\n")
+	}
+	NoBCPubKey=strings.Replace(NoBCPubKey,"\r","",-1)
+	//用于检查控制符
+	//log.Println([]byte(queryDiff.NoBCPubKey))
+
+	//本地不用先访问crl,因为添加进crl的时候，删除了cert
+	var err error
+	Logs:=""
+	NoBCClientCert,err:=certdb.DbCert.Get(NoBCPubKey)
+	if err!=nil{
+		Logs=err.Error()
+	}else{
+		Logs=NoBCClientCert
+		//log.Println(NoBCClientCert)
+	}
+	return Logs
+}
+func queryCertByDiffWaysWithMulit(w http.ResponseWriter, r *http.Request) {
+	var queryDiff struct {
+		BCPubKey string
+		BCClientCert string
+		NoBCPubKey string
+		NoBCClientCert string
+		Logs string
+		URL string
+	}
+	queryDiff.URL=r.Host
+
+	fp := path.Join("templates", "page4.html")
+	tmpl, err := template.ParseFiles(fp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	//gen cert
+	r.ParseForm()
+	tForm := make(map[string]string)
+	if r.Form["action"] == nil || len(r.Form["action"]) == 0 {
+
+		if err := tmpl.Execute(w, queryDiff); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	for a, b := range r.Form {
+		if len(b) == 0 {
+			//fmt.Println("a:",a,"b:","null")
+			tForm[a] = ""
+		} else {
+			tForm[a] = b[0]
+		}
+	}
+	queryDiff.BCPubKey=tForm["BCPubKey"]
+	queryDiff.NoBCPubKey=tForm["NoBCPubKey"]
+	queryDiff.BCClientCert=tForm["BCClientCert"]
+	queryDiff.NoBCClientCert=tForm["NoBCClientCert"]
+	queryDiff.Logs=tForm["Logs"]
+	if tForm["action"]=="BCGetCert"{
+		log.Println("Get Query by BC")
+		queryDiff.BCPubKey=tForm["BCPubKey"]
+		conQueryBC<-[]string{queryDiff.BCPubKey,queryDiff.BCClientCert,"bc"}
+	}else if tForm["action"]=="NoBCGetCert"{
+		log.Println("Get Query by NoBC")
+		conQueryNoBC<-[]string{queryDiff.NoBCPubKey,queryDiff.NoBCClientCert,"nobc"}
 	}
 	log.Println(queryDiff.Logs)
 	if err := tmpl.Execute(w, queryDiff); err != nil {

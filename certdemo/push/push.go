@@ -39,7 +39,7 @@ func PushServer() {
 	}
 }
 
-func Push(msg string){
+func PushWithEnd(msg,end string){
 	pushURL := "http://127.0.0.1:12345/push"
 	contentType := "application/json"
 
@@ -51,4 +51,9 @@ func Push(msg string){
 	b, _ := json.Marshal(pm)
 
 	_,_=http.DefaultClient.Post(pushURL, contentType, bytes.NewReader(b))
+}
+
+//Push
+func Push(msg string){
+	PushWithEnd(msg,"")
 }

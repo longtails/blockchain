@@ -66,6 +66,19 @@ func (cdb *CERTDB)Get(key string)(string,error){
 	cdb.mux.Unlock()
 	return string(val),err
 }
+//attention: n can not be too big
+func (cdb *CERTDB)GetSomeKeys(n int)(keys []string){
+	cdb.mux.Lock()
+	iter := cdb.db.NewIterator(nil, nil)
+	for iter.Next()&&n>0 {
+		key := iter.Key()
+		keys=append(keys,string(key))
+		n--
+	}
+	cdb.mux.Unlock()
+	return keys
+}
+
 func (cdb *CERTDB)Del(key string)error{
 	cdb.mux.Lock()
 	err:=cdb.db.Delete([]byte(key),nil)
