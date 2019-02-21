@@ -780,10 +780,10 @@ func queryCertByDiffWaysWithMulit(w http.ResponseWriter, r *http.Request) {
 	if tForm["action"]=="BCGetCert"{
 		log.Println("Get Query by BC")
 		queryDiff.BCPubKey=tForm["BCPubKey"]
-		conQueryBC<-[]string{queryDiff.BCPubKey,queryDiff.BCClientCert,"bc",r.Host}
+		conQueryBC<-[]string{queryDiff.BCPubKey,queryDiff.BCClientCert,"bc",r.RemoteAddr}
 	}else if tForm["action"]=="NoBCGetCert"{
 		log.Println("Get Query by NoBC")
-		conQueryNoBC<-[]string{queryDiff.NoBCPubKey,queryDiff.NoBCClientCert,"nobc",r.Host}
+		conQueryNoBC<-[]string{queryDiff.NoBCPubKey,queryDiff.NoBCClientCert,"nobc",r.RemoteAddr}
 	}
 	log.Println(queryDiff.Logs)
 	if err := tmpl.Execute(w, queryDiff); err != nil {
