@@ -584,11 +584,11 @@ func queryCronHelper(params []string){
 	con,err2:=strconv.Atoi(params[1])
 	topic:=params[2]
 	if err1!=nil||err2!=nil||con<=0{
-		push.Push("input error")
+		push.Push("input error From "+params[3]+" ")
 		return
 	}
 	keys:=certdb.DbKey.GetSomeKeys(total)
-	push.Push("Concurrent access certs")
+	push.Push("Concurrent access certs From "+params[3]+" ")
 	wg := sync.WaitGroup{}
 	wg.Add(con)
 	for i:=0;i<con;i++{
@@ -609,11 +609,11 @@ func queryCronHelper(params []string){
 			//这就是书上说的那个陷阱
 			//push.Push(topic+":"+"con"+strconv.Itoa(i)+" is done")
 		}(i,c) //确实，这里go func中循环变动的i，只能通过参数传过去
-		push.Push(topic+":"+"con"+strconv.Itoa(i)+" is done")
+		push.Push(topic+":"+"con"+strconv.Itoa(i)+" is done From "+params[3]+" ")
 		//time.Sleep(2*time.Second)
 	}
 	wg.Wait()
-	push.Push(topic+":all jobs is done")
+	push.Push(topic+":all jobs is done From "+params[3]+" ")
 	log.Println("done")
 }
 func queryCronJob(){
@@ -623,30 +623,30 @@ func queryCronJob(){
 			case bc:=<-conQueryBC:
 				fmt.Println(bc)
 				time.Sleep(3*time.Second)
-				push.Push("init jobs by bc")
+				push.Push("init jobs by bc From "+bc[3]+" ")
 				//query and timing
 				begin:=time.Now()
 				queryCronHelper(bc)
 				elapsed:=time.Now().Sub(begin)
 				time.Sleep(2*time.Second)
-				push.Push("jobs done by bc")
+				push.Push("jobs done by bc From "+bc[3]+" ")
 				//并发调用
 				logs:=" spend "+elapsed.String()
-				push.PushWithEnd(bc[2]+":"+logs,"\n")
+				push.PushWithEnd(bc[2]+":"+logs+" From "+bc[3]+" ","\n")
 
 			case nobc:=<-conQueryNoBC:
 				fmt.Println(nobc)
 				time.Sleep(3*time.Second)
-				push.Push("init jobs by nobc")
+				push.Push("init jobs by bc "+"From "+nobc[3]+" ")
 				//query and timing
 				begin:=time.Now()
 				queryCronHelper(nobc)
 				elapsed:=time.Now().Sub(begin)
 				time.Sleep(2*time.Second)
-				push.Push("jobs done by nobc")
+				push.Push("jobs done by nobc From "+nobc[3]+" ")
 				//并发调用
 				logs:=" spend "+elapsed.String()
-				push.PushWithEnd(nobc[2]+":"+logs,"\n")
+				push.PushWithEnd(nobc[2]+":"+logs+" From "+nobc[3]+" ","\n")
 		}
 	}
 }
@@ -737,7 +737,7 @@ func queryByNoBc(NoBCPubKey string)string{
 	return Logs
 }
 func queryCertByDiffWaysWithMulit(w http.ResponseWriter, r *http.Request) {
-	var queryDiff struct {
+	var queryDiff struct {//暂时不能删，因为go template用的这个结构数据
 		BCPubKey string
 		BCClientCert string
 		NoBCPubKey string
@@ -780,10 +780,10 @@ func queryCertByDiffWaysWithMulit(w http.ResponseWriter, r *http.Request) {
 	if tForm["action"]=="BCGetCert"{
 		log.Println("Get Query by BC")
 		queryDiff.BCPubKey=tForm["BCPubKey"]
-		conQueryBC<-[]string{queryDiff.BCPubKey,queryDiff.BCClientCert,"bc"}
+		conQueryBC<-[]string{queryDiff.BCPubKey,queryDiff.BCClientCert,"bc",r.Host}
 	}else if tForm["action"]=="NoBCGetCert"{
 		log.Println("Get Query by NoBC")
-		conQueryNoBC<-[]string{queryDiff.NoBCPubKey,queryDiff.NoBCClientCert,"nobc"}
+		conQueryNoBC<-[]string{queryDiff.NoBCPubKey,queryDiff.NoBCClientCert,"nobc",r.Host}
 	}
 	log.Println(queryDiff.Logs)
 	if err := tmpl.Execute(w, queryDiff); err != nil {
