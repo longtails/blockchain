@@ -9,13 +9,16 @@ import (
 	"crypto/elliptic"
 	crand "crypto/rand"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
 	"html/template"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -713,8 +716,30 @@ func queryByBc(BCPubKey string)string{
 	}
 	return Logs
 }
-
+type NoBC struct{
+	Status string
+	Key string
+	Cert string
+}
 func queryByNoBc(NoBCPubKey string)string{
+	//以后全部改成配置的
+	resp,err:=http.PostForm("http://127.0.0.1:5000/queryByNoBC",
+		url.Values{
+			"pubKey":   {NoBCPubKey},
+		})
+	if err!=nil{
+		log.Println(err)
+	}
+	body,_:=ioutil.ReadAll(resp.Body)
+	data:=NoBC{}
+	err=json.Unmarshal(body,&data)
+	if err!=nil{
+		log.Println(err)
+		return err.Error()
+	}
+	return data.Status
+}
+func queryByNoBcBackup(NoBCPubKey string)string{
 	log.Println("Get Query by NoBC")
 	if NoBCPubKey[len(NoBCPubKey)-1]=='\n'{
 		NoBCPubKey=NoBCPubKey[:len(NoBCPubKey)-1]
@@ -734,6 +759,8 @@ func queryByNoBc(NoBCPubKey string)string{
 		Logs=NoBCClientCert
 		//log.Println(NoBCClientCert)
 	}
+	fmt.Println(NoBCPubKey)
+	fmt.Println(Logs)
 	return Logs
 }
 func queryCertByDiffWaysWithMulit(w http.ResponseWriter, r *http.Request) {
