@@ -603,16 +603,16 @@ func queryCronHelper(params []string){
 			for j:=0;j<n&&r*c+j<total;j++{
 				key:=keys[r*c+j]
 				if topic=="bc"{
-					queryByBc(key)
+					queryByBc(key,r)
 				}else{
 					queryByNoBc(key)
 				}
 			}
 			wg.Done()
+			push.Push(topic+":"+"con"+strconv.Itoa(r)+" is done From "+params[3]+" ")
 			//这就是书上说的那个陷阱
 			//push.Push(topic+":"+"con"+strconv.Itoa(i)+" is done")
 		}(i,c) //确实，这里go func中循环变动的i，只能通过参数传过去
-		push.Push(topic+":"+"con"+strconv.Itoa(i)+" is done From "+params[3]+" ")
 		//time.Sleep(2*time.Second)
 	}
 	wg.Wait()
@@ -653,7 +653,7 @@ func queryCronJob(){
 		}
 	}
 }
-func queryByBc(BCPubKey string)string{
+func queryByBc(BCPubKey string,n int )string{
 	//fmt.Println([]byte(queryDiff.BCPubKey))
 	if BCPubKey[len(BCPubKey)-1]=='\n'{
 		BCPubKey=BCPubKey[:len(BCPubKey)-1]
@@ -661,10 +661,16 @@ func queryByBc(BCPubKey string)string{
 	}
 	BCPubKey=strings.Replace(BCPubKey,"\r","",-1)
 
+	var serves=[]string{"http://114.115.165.101:10000/invoke/get_car_crl",
+		"http://114.116.67.108:100/peer1_org2/get_car_cert",
+		"http://114.116.67.108:200/peer0_org2/get_car_cert"}
+	fmt.Println(n,n%3)
+	fmt.Println(serves[n%3])
 	//pre: query crl
 	cmd:= exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+BCPubKey,
 		"-d", "action=get_car_crl",
-		"http://114.115.165.101:10000/invoke/get_car_crl")
+		serves[n%3])
+	//"http://114.115.165.101:10000/invoke/get_car_crl")
 	out,err := cmd.Output()
 	Logs:=""
 	if err != nil {
@@ -723,7 +729,7 @@ type NoBC struct{
 }
 func queryByNoBc(NoBCPubKey string)string{
 	//以后全部改成配置的
-	resp,err:=http.PostForm("http://127.0.0.1:5000/queryByNoBC",
+	resp,err:=http.PostForm("http://114.115.160.141:5000/queryByNoBC",
 		url.Values{
 			"pubKey":   {NoBCPubKey},
 		})
