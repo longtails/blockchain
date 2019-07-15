@@ -10,14 +10,6 @@
   version = "v1.4.2"
 
 [[projects]]
-  digest = "1:807a48115fe702191f7c85bb74f04ab44e621df9eba4c65be47290296c6d3698"
-  name = "github.com/alfred-zhong/wserver"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "07fe0672911acb67965426c167e6ae10ba56bd27"
-  version = "v0.1.0"
-
-[[projects]]
   digest = "1:e4f5819333ac698d294fe04dbf640f84719658d5c7ce195b10060cc37292ce79"
   name = "github.com/golang/snappy"
   packages = ["."]
@@ -48,6 +40,14 @@
   pruneopts = "UT"
   revision = "f55edac94c9bbba5d6182a4be46d86a2c9b5b50e"
   version = "v1.0.2"
+
+[[projects]]
+  digest = "1:27c0e12fdc79e42624fbbcef371c6c75782787f9120b12e5c3d2c0f2f64e6de7"
+  name = "github.com/scylhy/wserver"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2830aca5ce8e71d0413b8f2accc1a0b995404ef1"
+  version = "v0.1.1"
 
 [[projects]]
   digest = "1:5b180f17d5bc50b765f4dcf0d126c72979531cbbd7f7929bf3edd87fb801ea2d"
@@ -83,7 +83,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/Sirupsen/logrus",
-    "github.com/alfred-zhong/wserver",
+    "github.com/scylhy/wserver",
     "github.com/syndtr/goleveldb/leveldb",
   ]
   solver-name = "gps-cdcl"

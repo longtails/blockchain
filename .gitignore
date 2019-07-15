@@ -2,3 +2,5 @@
 *.crt
 *.pem
 .DS_Store 
+db*
+certdemo/dbcert/*

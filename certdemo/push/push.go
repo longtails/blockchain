@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/alfred-zhong/wserver"
+	//"github.com/alfred-zhong/wserver"
+	"github.com/scylhy/wserver"
 	"net/http"
 	"time"
 )
