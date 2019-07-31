@@ -27,11 +27,11 @@
 
 [[constraint]]
   name = "github.com/Sirupsen/logrus"
-  version = "1.4.2"
+  version = "0.8.7"
 
 [[constraint]]
-  name = "github.com/alfred-zhong/wserver"
-  version = "0.1.0"
+  name = "github.com/scylhy/wserver"
+  version = "0.1.1"
 
 [[constraint]]
   name = "github.com/syndtr/goleveldb"

@@ -60,42 +60,29 @@
                     <li><a href="http://{{.URL}}/clientKey">Client Key Example</a></li>
                     <li><a href="http://{{.URL}}/register">Register</a></li>
                     <li><a href="http://{{.URL}}/expired">Add cert to crl</a></li>
-                    <li class="active"><a href="http://{{.URL}}/queryDiffWays">Query cert by diff ways</a></li>
+                    <li class="active"><a href="http://{{.URL}}/queryDiffWays">Query cert</a></li>
                 </ul>
             </div>
             <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
-                <h1 class="page-header">对比查询</h1>
+                <h1 class="page-header">证书查询</h1>
                 <div class="row" style="text-align: center;">
-                    <div class="col-md-6 panel panel-default" style="display: inline;">
-                        <form style="padding: 5px;">
-                            <label>区块缓冲</label><br><br>
-                            <p style="text-align: left;">输入查询总数</p>
-                            <textarea class="form-control" name="BCPubKey" style="width: 100%;height: 30px;">{{.BCPubKey}}</textarea>
-                            <br>
-                            <p style="text-align: left;">输入并发数</p>
-                            <textarea class="form-control" name="BCClientCert" style="width: 100%;height: 30px;">{{.BCClientCert}}</textarea>
-                            <br>
-                            <input class="btn btn-primary" type="submit" name="action" value="BCGetCert">
-                            <br>
-                        </form>
-                    </div>
-                    <div class="col-md-6 panel panel-default" style="display: inline;">
-                        <form method="post" name="NoBCQuery" style="padding: 5px;">
-                            <label>无区块缓冲</label><br><br>
-                            <p style="text-align: left;">输入查询总数</p>
-                            <textarea class="form-control" name="NoBCPubKey" style="width: 100%;height: 30px;">{{.NoBCPubKey}}</textarea>
-                            <br>
-                            <p style="text-align: left;">输入并发数</p>
-                            <textarea class="form-control" name="NoBCClientCert" style="width: 100%;height: 30px;">{{.NoBCClientCert}}</textarea>
-                            <br>
-                            <input class="btn btn-primary" type="submit" name="action" value="NoBCGetCert">
-                            <br>
-                        </form>
-                    </div>
+                    <form style="padding: 5px;">
+                        <label>区块缓冲</label><br><br>
+                        <p style="text-align: left;">输入客户端公钥</p>
+                        <textarea class="form-control" name="BCPubKey" style="width: 100%;height: 150px;">{{.BCPubKey}}</textarea>
+                        <br>
+                        <p style="text-align: left;">查询结果(证书)</p>
+                        <textarea class="form-control" name="BCClientCert" style="width: 100%;height: 150px;">{{.BCClientCert}}</textarea>
+                        <br>
+                        <input class="btn btn-primary" type="submit" name="action" value="BCGetCert">
+                        <br>
+                    </form>
+                    {{.NoBCPubKey}}
+                    {{.NoBCClientCert}}
                 </div>
                 <div class="log panel panel-default" style="padding: 5px;text-align: center;">
                     <label>运行日志</label><br>
-                    <textarea class="form-control" name="log" style="width: 100%;height: 500px;">{{.Logs}}</textarea>
+                    <textarea class="form-control" name="log">{{.Logs}}</textarea>
                 </div>
             </div>
         </div>

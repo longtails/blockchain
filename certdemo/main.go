@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"github.com/spf13/viper"
 	"github.com/syndtr/goleveldb/leveldb"
 	"html/template"
 	"io/ioutil"
@@ -48,6 +49,7 @@ type Profile struct {
 	URL string
 }
 
+var Config =make(map[string][]string)
 func init() {
 	f, err := os.Open("cert.crt")
 	defer f.Close()
@@ -56,6 +58,24 @@ func init() {
 		CA()
 	} else {
 		log.Println("ca cert exist!")
+	}
+
+	//读取配置文件
+	viper.SetConfigName("config")     //设置配置文件的名字
+	viper.AddConfigPath(".")           //添加配置文件所在的路径
+	viper.SetConfigType("yaml")       //设置配置文件类型，可选
+	err = viper.ReadInConfig()
+	if err != nil {
+		fmt.Printf("config file error: %s\n", err)
+		os.Exit(1)
+	}
+	Config["server"]=[]string{fmt.Sprintf("%s",viper.Get("server"))}
+	Config["bcServers"]=viper.GetStringSlice("bcServers")
+	for k,v:=range Config{
+		fmt.Println(k,v)
+	}
+	if len(Config["server"])==0||len(Config["bcServers"])==0{
+		log.Fatal("must config params server and bcServers in config.yaml")
 	}
 }
 func T1(db *leveldb.DB){
@@ -143,7 +163,11 @@ func web() {
 	})
 	log.Println("starting service!")
 	//log.Fatal输出后，会退出程序,执行os.Exit(1)
-	log.Fatal(http.ListenAndServe(":4000", nil))
+	if len(Config["server"])>0{
+		log.Fatal(http.ListenAndServe(Config["server"][0], nil))
+	}else{
+		log.Fatal(http.ListenAndServe(":4000", nil))
+	}
 }
 
 
@@ -251,7 +275,8 @@ func register(w http.ResponseWriter, r *http.Request) {
 		cmd := exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+pubKeyStr,
 			"--data-urlencode", "car_ca="+profile.ClientCert,
 			"-d", "action=set_car_cert",
-			"http://114.115.165.101:10000/invoke/set_car_cert")
+			"http://"+Config["bcServers"][0]+"/invoke/set_car_cert")
+			//"http://114.115.165.101:10000/invoke/set_car_cert")
 
 		log.Println("Running command and waiting for it to finish...")
 		/*
@@ -405,7 +430,8 @@ func expired(w http.ResponseWriter, r *http.Request) {
 		cmd := exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+ExpiredCerted.PubKey,
 			"--data-urlencode", "car_bad_flag="+ExpiredCerted.Status,
 			"-d", "action=set_Car_CA",
-			"http://114.115.165.101:10000/invoke/set_car_crl")
+			"http://"+Config["bcServers"][0]+"/invoke/set_car_crl")
+			//"http://114.115.165.101:10000/invoke/set_car_crl")
 		log.Printf("Running command and waiting for it to finish...")
 		err := cmd.Run()
 		if err != nil {
@@ -485,7 +511,8 @@ func queryCertByDiffWays(w http.ResponseWriter, r *http.Request) {
 		//pre: query crl
 		cmd:= exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+queryDiff.BCPubKey,
 			"-d", "action=get_car_crl",
-			"http://114.115.165.101:10000/invoke/get_car_crl")
+			"http://"+Config["bcServers"][0]+"/invoke/get_car_crl")
+			//"http://114.115.165.101:10000/invoke/get_car_crl")
 		out,err := cmd.Output()
 		if err != nil {
 			log.Printf("Command finished with error: %v", err)
@@ -514,7 +541,8 @@ func queryCertByDiffWays(w http.ResponseWriter, r *http.Request) {
 			//query cert
 			cmd = exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+queryDiff.BCPubKey,
 				"-d", "action=get_car_cert",
-				"http://114.115.165.101:10000/invoke/get_car_cert")
+				"http://"+Config["bcServers"][0]+"/invoke/get_car_cert")
+				//"http://114.115.165.101:10000/invoke/get_car_cert")
 			out,err = cmd.Output()
 			if err != nil {
 				log.Printf("Command finished with error: %v", err)
@@ -661,9 +689,16 @@ func queryByBc(BCPubKey string,n int )string{
 	}
 	BCPubKey=strings.Replace(BCPubKey,"\r","",-1)
 
-	var serves=[]string{"http://114.115.165.101:10000/invoke/get_car_crl",
+	//添加地址
+	/*var serves=[]string{"http://114.115.165.101:10000/invoke/get_car_crl",
 		"http://114.116.67.108:100/peer1_org2/get_car_cert",
 		"http://114.116.67.108:200/peer0_org2/get_car_cert"}
+    */
+	//bc服务接口不能乱变，要固定
+	var serves=Config["bcServers"]
+	for i:=0;i<len(serves);i++{
+		serves[i]="http://"+serves[i]+"/invoke/get_car_crl"
+	}
 	fmt.Println(n,n%3)
 	fmt.Println(serves[n%3])
 	//pre: query crl
@@ -698,7 +733,8 @@ func queryByBc(BCPubKey string,n int )string{
 		//query cert
 		cmd = exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+BCPubKey,
 			"-d", "action=get_car_cert",
-			"http://114.115.165.101:10000/invoke/get_car_cert")
+			//"http://114.115.165.101:10000/invoke/get_car_cert")
+			"http://114.115.165.101:10000/invoke/get_car_crl")
 		out,err = cmd.Output()
 		if err != nil {
 			log.Printf("Command finished with error: %v", err)
@@ -727,8 +763,10 @@ type NoBC struct{
 	Key string
 	Cert string
 }
+//暂时不用
 func queryByNoBc(NoBCPubKey string)string{
 	//以后全部改成配置的
+	//todo
 	resp,err:=http.PostForm("http://114.115.160.141:5000/queryByNoBC",
 		url.Values{
 			"pubKey":   {NoBCPubKey},
