@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 )
+//websocket 用于推送消息
 //change info if need
 func PushServer() {
 	server := wserver.NewServer(":12345")
@@ -57,4 +58,18 @@ func PushWithEnd(msg,end string){
 //Push
 func Push(msg string){
 	PushWithEnd(msg,"")
+}
+//PushCert
+func PushCert(msg string){
+	pushURL := "http://127.0.0.1:12345/push"
+	contentType := "application/json"
+
+	pm := wserver.PushMessage{
+		UserID:  "queryLog",
+		Event:   "queryLog",
+		Message: fmt.Sprintf("%s",msg),
+	}
+	b, _ := json.Marshal(pm)
+
+	_,_=http.DefaultClient.Post(pushURL, contentType, bytes.NewReader(b))
 }

@@ -71,6 +71,7 @@ func priKeyHash(priKey *ecdsa.PrivateKey) []byte {
 	return hash.Sum(nil)
 }
 
+//生成根证书
 func CA() {
 	// 生成ecdsa
 	e := &ecdsaGen{curve: elliptic.P256()}
@@ -124,7 +125,7 @@ func CA() {
 	crt.Close()
 
 }
-
+//生成私钥
 //func Client(x509certEncode []byte,priKey *ecdsa.PrivateKey,
 func Client(clientKey string,
 	country, locality, province, orgunit, org, street, postalcode []string,
@@ -213,7 +214,7 @@ func Client(clientKey string,
 	log.Println("new crt:\n", bufcrt)
 	return bufcrt.String()
 }
-
+//验证证书
 func Verify(rootPEM, certPEM string) (bool, error) {
 	// Verifying with a custom list of root certificates.
 	log.Println("verifying")

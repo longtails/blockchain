@@ -66,6 +66,7 @@ func (cdb *CERTDB)Get(key string)(string,error){
 	cdb.mux.Unlock()
 	return string(val),err
 }
+//获取一批key
 //attention: n can not be too big
 func (cdb *CERTDB)GetSomeKeys(n int)(keys []string){
 	cdb.mux.Lock()
@@ -88,6 +89,7 @@ func (cdb *CERTDB)Del(key string)error{
 
 
 
+//test
 func T1(db *leveldb.DB){
 	log.Println("gen new cert")
 	iter := db.NewIterator(nil, nil)
