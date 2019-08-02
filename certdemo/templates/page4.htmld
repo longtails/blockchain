@@ -88,7 +88,7 @@
 
     <script>
         //push msg to log area
-        var wsuri = "ws://127.0.0.1:12345/ws";
+        var wsuri = "ws://SERVERIP:12345/ws";
         var token = "queryLog";
         var e = "queryLog";
 
