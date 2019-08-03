@@ -15,7 +15,7 @@
         text-align: center;
     }
     </style>
-    <title>对比查询</title>
+    <title>证书查询</title>
     <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Custom styles for this template -->
