@@ -1,20 +1,21 @@
 # blockchain certdemo
 
-### build certdemo image
+### 1. build certdemo image
+```bash
 make build
-
-### run certdemo
-
+```
+### 2. run certdemo
+```bash
 make run
-
-### stop certdemo
-
+```
+### 3. stop certdemo
+```bash
 make stop
-
-### clean certdemo image
-
+```
+### 4. clean certdemo image
+```bash
 make clean
-
+```
 ### others
 
 just replace ip
