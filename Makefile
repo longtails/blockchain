@@ -17,8 +17,8 @@ clean:
 	docker rmi certdemo  -f
 
 replace:
-	@echo $(shell ifconfig | grep 0xfff | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' | grep -v 255)
-	$(shell cd ./certdemo/templates &&  sed  's/SERVERIP/'$(shell curl ifconfig.me |grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' | grep -v 255)'/g' page4.html    d >page4.html)
+	@echo $(shell curl ifconfig.me )
+	$(shell cd ./certdemo/templates &&  sed  's/SERVERIP/'$(shell curl ifconfig.me )'/g' page4.htmld >page4.html)
 
 check:./certdemo/templates/page4.html
 	@echo "page4.html ip replaced"
