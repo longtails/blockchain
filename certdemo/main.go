@@ -444,7 +444,7 @@ func expired(w http.ResponseWriter, r *http.Request) {
 			log.Println(err)
 		}
 	} else {
-		ExpiredCerted.Status="error command"
+		//ExpiredCerted.Status="error command"
 	}
 
 	if err := tmpl.Execute(w, ExpiredCerted); err != nil {
