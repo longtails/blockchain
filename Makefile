@@ -10,7 +10,7 @@ build:Dockerfile
 
 run:config.yaml
 	@echo  "run certdemo in docker:"
-	docker run  -d -p 12345:12345 -p 5000:$(shell cat config.yaml  |awk '{if ($$1 =="server:")print $$2;}'|awk -F : '{print $$2}'|awk -F \" '{print $$1}') certdemo 
+	docker run  -d -p 12345:12345 -p $(shell cat config.yaml  |awk '{if ($$1 =="server:")print $$2;}'|awk -F : '{print $$2}'|awk -F \" '{print $$1}'):5000  certdemo 
 
 stop:
 	@echo "rm certdemo container"
