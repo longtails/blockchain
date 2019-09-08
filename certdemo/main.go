@@ -3,6 +3,7 @@ package main
 import (
 	"blockchain/certdemo/certdb"
 	. "blockchain/certdemo/certifacte"
+	"blockchain/certdemo/discovery"
 	"blockchain/certdemo/push"
 	"bytes"
 	"crypto/ecdsa"
@@ -15,12 +16,14 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"html/template"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -46,6 +49,7 @@ type Profile struct {
 
 //配置信息：服务启动端口，区块链服务地址
 var Config =make(map[string][]string)
+var Peers sync.Map
 func init() {
 	//生成根证书
 	f, err := os.Open("cert.crt")
@@ -67,12 +71,25 @@ func init() {
 		os.Exit(1)
 	}
 	Config["server"]=[]string{fmt.Sprintf("%s",viper.Get("server"))}
-	Config["bcServers"]=viper.GetStringSlice("bcServers")
+	Config["etcdServers"]=viper.GetStringSlice("etcdServers")
+	//bsServers配置成etcd的地址
+	go func(){
+		endpoints:=Config["etcdServers"]
+		master := discovery.NewMaster(endpoints)
+		span:=1
+		for i:=0;i<5;i++{//
+		log.Println("watch peers")
+			master.WatchPeers("peers/",&Peers)
+			time.Sleep(time.Duration(span*2)*time.Second)
+			span*=2
+		}
+	}()
+
 	Config["expired"]=[]string{viper.GetString("expired")}
 	for k,v:=range Config{
 		log.Println(k,v)
 	}
-	if len(Config["server"])==0||len(Config["bcServers"])==0{
+	if len(Config["server"])==0||len(Config["etcdServers"])==0{
 		log.Fatal("must config params server and bcServers in config.yaml")
 	}
 }
@@ -106,6 +123,19 @@ func main() {
 //回调函数：重新生成证书
 func updateCert(db *leveldb.DB){
 	log.Println("gen new cert")
+
+	servers:=make([]string,0)
+	Peers.Range(func(key,value interface{})bool{
+		servers=append(servers,value.(string))
+		return true
+	})
+	if len(servers)==0{
+		log.Println("updateCert error: can`t find peers")
+		return
+	}
+	peerIP:=servers[rand.Int()%len(servers)]
+
+
 	iter := db.NewIterator(nil, nil)
 	log.Println("Running command and waiting for it to finish...")
 	//这里边不能再加锁了
@@ -130,7 +160,7 @@ func updateCert(db *leveldb.DB){
 		cmd := exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+string(pubkey),
 			"--data-urlencode", "car_ca="+certstr,
 			"-d", "action=set_car_cert",
-			"http://"+Config["bcServers"][0]+"/cert-issue-system-sdk/set_car_cert")
+			"http://"+peerIP+"/cert-issue-system-sdk/set_car_cert")
 		//将新生成的证书提交到链上
 		err = cmd.Run()
 		if err != nil {
@@ -191,6 +221,20 @@ var profile = Profile{"",
 
 func register(w http.ResponseWriter, r *http.Request) {
 	log.Println("in register:")
+
+
+	servers:=make([]string,0)
+	Peers.Range(func(key,value interface{})bool{
+		servers=append(servers,value.(string))
+		return true
+	})
+	if len(servers)==0{
+		http.Error(w,"can`t find peers",http.StatusInternalServerError)
+		return
+	}
+	peerIP:=servers[rand.Int()%len(servers)]
+
+
 	profile.URL=r.Host
 	fp := path.Join("templates", "page2.html")
 	tmpl, err := template.ParseFiles(fp)
@@ -277,7 +321,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 		cmd := exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+pubKeyStr,
 			"--data-urlencode", "car_ca="+profile.ClientCert,
 			"-d", "action=set_car_cert",
-			"http://"+Config["bcServers"][0]+"/cert-issue-system-sdk/set_car_cert")
+			"http://"+peerIP+"/cert-issue-system-sdk/set_car_cert")
 
 		log.Println("Running command and waiting for it to finish...")
 		err = cmd.Run()
@@ -382,6 +426,18 @@ func clientKey(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func expired(w http.ResponseWriter, r *http.Request) {
+	//load
+	servers:=make([]string,0)
+	Peers.Range(func(key,value interface{})bool{
+		servers=append(servers,value.(string))
+		return true
+	})
+	if len(servers)==0{
+		http.Error(w,"can`t find peers",http.StatusInternalServerError)
+		return
+	}
+	peerIP:=servers[rand.Int()%len(servers)]
+
 	log.Println("in expired:")
 	ExpiredCerted.URL=r.Host
 	fp := path.Join("templates", "page3.html")
@@ -423,7 +479,7 @@ func expired(w http.ResponseWriter, r *http.Request) {
 		cmd := exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+ExpiredCerted.PubKey,
 			"--data-urlencode", "car_bad_flag="+ExpiredCerted.Status,
 			"-d", "action=set_Car_CA",
-			"http://"+Config["bcServers"][0]+"/cert-issue-system-sdk/set_car_crl")
+			"http://"+peerIP+"/cert-issue-system-sdk/set_car_crl")
 		log.Printf("Running command and waiting for it to finish...")
 		err := cmd.Run()
 		if err != nil {
@@ -499,16 +555,27 @@ func queryCronJob(){
 //n:表示选择哪个节点，目前暂定最多3个
 func queryByBc(BCPubKey string,n int )string{
 	log.Println("in queryByBC:")
+
+	//load peers
+	servers:=make([]string,0)
+	Peers.Range(func(key,value interface{})bool{
+		servers=append(servers,value.(string))
+		return true
+	})
+	if len(servers)==0{
+		return "can`t find peers"
+	}
+	peerIP:=servers[rand.Int()%len(servers)]
+
 	if BCPubKey[len(BCPubKey)-1]=='\n'{
 		BCPubKey=BCPubKey[:len(BCPubKey)-1]
 		log.Println("NoBCPubKey last char is \\n")
 	}
 	BCPubKey=strings.Replace(BCPubKey,"\r","",-1)
-	var serves=Config["bcServers"]
 	//查询该证书是否在crl列表中
 	cmd:= exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+BCPubKey,
 		"-d", "action=get_car_crl",
-		"http://"+serves[n%3]+"/cert-issue-system-sdk/get_car_crl")
+		"http://"+peerIP+"/cert-issue-system-sdk/get_car_crl")
 	out,err := cmd.Output()
 	Logs:=""
 	if err != nil {
@@ -537,7 +604,7 @@ func queryByBc(BCPubKey string,n int )string{
 		//不在crl中，query cert
 		cmd = exec.Command("curl", "-X", "POST", "--data-urlencode", "car_key="+BCPubKey,
 			"-d", "action=get_car_cert",
-			"http://"+serves[n%3]+"/cert-issue-system-sdk/get_car_cert")
+			"http://"+peerIP+"/cert-issue-system-sdk/get_car_cert")
 		out,err = cmd.Output()
 		if err != nil {
 			log.Printf("Command finished with error: %v", err)
