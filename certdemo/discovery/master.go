@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -62,7 +63,16 @@ func NodeToWorkerInfo(node *client.Node) *WorkerInfo {
 	if err != nil {
 		log.Print(err)
 	}
+	fmt.Println(node)
 	return info
+}
+
+func NodeToKV(node *client.Node) *WorkerInfo {
+	if node!=nil{
+		return &WorkerInfo{node.Key,node.Value}
+	}else{
+		return nil
+	}
 }
 
 func (m *Master) WatchWorkers() {
@@ -122,6 +132,18 @@ func (m *Master) WatchPeers(key string,mp* sync.Map) {
 		Recursive: true,
 	})
 
+	//test
+	go func(){
+		for false{
+			fmt.Println("peers")
+			mp.Range(
+				func(a,b interface{})bool{
+				fmt.Println(a,b)
+				return true
+			})
+			time.Sleep(time.Second*3)
+		}
+	}()
 	//监听
 	for {
 		res, err := watcher.Next(context.Background())
@@ -130,7 +152,15 @@ func (m *Master) WatchPeers(key string,mp* sync.Map) {
 			break
 		}
 		if res.Action == "expire" {
-			info := NodeToWorkerInfo(res.PrevNode)
+			//expire /peers/47.112.33.105 47.112.33.105:11000 {Key: /peers/47.112.33.105, CreatedIndex: 4525, ModifiedIndex: 4538, TTL: 0}
+			//fmt.Println("expire",res.PrevNode.Key,res.PrevNode.Value,res.PrevNode)
+			mp.Delete(res.PrevNode.Key)
+			//info := NodeToWorkerInfo(res.PrevNode)
+			info := NodeToKV(res.PrevNode)
+			if info==nil{
+				log.Println("no key and value")
+				continue
+			}
 			log.Println("Expired peer:",info.Name,info.IP)
 			member, ok := m.members[info.Name]
 			if ok {
@@ -139,7 +169,13 @@ func (m *Master) WatchPeers(key string,mp* sync.Map) {
 			mp.Delete(info.Name+"@"+info.IP)
 			//删除map中的value
 		} else if res.Action == "set" {
-			info := NodeToWorkerInfo(res.Node)
+			//{Key: /peers/0.0.0.0, CreatedIndex: 4540, ModifiedIndex: 4540, TTL: 60} /peers/0.0.0.0 0.0.0.0:11000
+			//fmt.Println(res.Node,res.Node.Key,res.Node.Value)
+			//info := NodeToWorkerInfo(res.Node)
+			info := NodeToKV(res.Node)
+			if info==nil{
+				log.Println("no key and value")
+			}
 			if _, ok := m.members[info.Name]; ok {
 				//update
 				m.UpdateWorker(info)
@@ -149,11 +185,22 @@ func (m *Master) WatchPeers(key string,mp* sync.Map) {
 				m.AddWorker(info)
 			}
 			mp.Store(info.Name+"@"+info.IP,info.IP)
+			//mp.Store(info.Name+"@"+info.IP,info.IP)
 		} else if res.Action == "delete" {
-			info := NodeToWorkerInfo(res.Node)
+			//fmt.Println(res.Node,res.Node.Key,res.Node.Value)
+			//info := NodeToWorkerInfo(res.Node)
+			info := NodeToKV(res.Node)
+			if info==nil{
+				log.Println("no key and value")
+				continue
+			}
 			log.Println("Delete peer:", info.Name,info.IP)
+			//删除掉成员
 			delete(m.members, info.Name)
 			mp.Delete(info.Name+"@"+info.IP)
+		}else{
+			//其他信息
+			log.Println("other info",res.Action,res)
 		}
 	}
 
