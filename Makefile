@@ -30,9 +30,9 @@ check:./certdemo/templates/page4.html
 
 etcdup: ./etcd/etcd-cluster.yaml
 	@echo start etcd cluster in docker
-	docker-compose -f ./etcd/etcd-cluster.yaml -d up
+	docker-compose -f ./etcd/etcd-cluster.yaml up -d
 
 ectddown: ./etcd/etcd-cluster.yaml
 	@echo stop etcd cluster
-	docker-compose -f ./etcd/etcd-cluster.yaml -d down
+	docker-compose -f ./etcd/etcd-cluster.yaml  down
 
