@@ -27,3 +27,12 @@ replace:
 check:./certdemo/templates/page4.html
 	@echo "page4.html ip replaced"
 
+
+etcdup: ./etcd/etcd-cluster.yaml
+	@echo start etcd cluster in docker
+	docker-compose -f ./etcd/etcd-cluster.yaml -d up
+
+ectddown: ./etcd/etcd-cluster.yaml
+	@echo stop etcd cluster
+	docker-compose -f ./etcd/etcd-cluster.yaml -d down
+
