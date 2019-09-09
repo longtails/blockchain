@@ -69,8 +69,10 @@
                     <p class="lead">1. 生成客户端的公私钥，可通过如下链接获取一个样例 <br>Visit <a href="http://{{.URL}}/clientKey">ClientKey</a> to test! </p>
                     <p class="lead">2. 使用客户端的私钥注册，并生成证书，数据会写入区块<br>Visit <a href="http://{{.URL}}/register">register</a> to test! </p>
                     <p class="lead">3. 通过客户端的公钥，将证书添加到CRL中 <br>Visit <a href="http://{{.URL}}/expired">add cert to crl</a> to test! </p>
-                    <p class="lead">4. 通过客户端公钥查询证书，这里有两种查询路径：通过区块缓冲层或者直接从CA获取 <br>Visit <a href="http://{{.URL}}/queryDiffWays">query cert</a> to test! </p>
+                    <p class="lead">4. 通过客户端公钥查询证书从区块缓冲层获取 <br>Visit <a href="http://{{.URL}}/queryDiffWays">query cert</a> to test! </p>
+                    <!--<p class="lead">4. 通过客户端公钥查询证书，这里有两种查询路径：通过区块缓冲层或者直接从CA获取 <br>Visit <a href="http://{{.URL}}/queryDiffWays">query cert</a> to test! </p>
                     <img src="/static/structure.png">
+                    -->
                     <div id="carousel-example-generic" class="carousel slide" data-ride="carousel">
                         <ol class="carousel-indicators">
                             <li data-target="#carousel-example-generic" data-slide-to="0" class="active"></li>
@@ -79,14 +81,16 @@
                             <li data-target="#carousel-example-generic" data-slide-to="3"></li>
                         </ol>
                         <div class="carousel-inner" role="listbox">
+                            <!---
                             <div class="item active">
                                 <img src="/static/structure.png" alt="First slide">
                             </div>
-                            <div class="item">
-                                <img src="/static/p1.png" alt="Second slide">
+                            --->
+                            <div class="item active">
+                                <img src="/static/p1.png" alt="First slide">
                             </div>
                             <div class="item">
-                                <img src="/static/p2.png" alt="Third slide">
+                                <img src="/static/p2.png" alt="Second slide">
                             </div>
                             <div class="item">
                                 <img src="/static/p4.png" alt="Third slide">
