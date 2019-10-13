@@ -115,7 +115,7 @@ func (m *Master) WatchWorkers() {
 	}
 }
 
-func (m *Master) WatchPeers(key string,mp* sync.Map) {
+func (m *Master) WatchPeers(key string,mp* sync.Map){
 	api := m.KeysAPI
 	//初始化
 	res,err:=api.Get(context.Background(),key,nil)
@@ -203,5 +203,4 @@ func (m *Master) WatchPeers(key string,mp* sync.Map) {
 			log.Println("other info",res.Action,res)
 		}
 	}
-
 }

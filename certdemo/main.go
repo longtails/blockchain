@@ -77,7 +77,7 @@ func init() {
 		endpoints:=Config["etcdServers"]
 		master := discovery.NewMaster(endpoints)
 		span:=1
-		for i:=0;i<5;i++{//
+		for i:=0;i<1000;i++{//正常这里只会启动一次
 		log.Println("watch peers")
 			master.WatchPeers("peers/",&Peers)
 			time.Sleep(time.Duration(span*2)*time.Second)

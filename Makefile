@@ -15,6 +15,7 @@ run:config.yaml
 stop:
 	@echo "rm certdemo container"
 	docker rm $(shell docker ps |grep certdemo |awk '{print $$1}') -f
+stop-etcd:
 	@echo "rm etcd container"
 	docker rm $(shell docker ps |grep etcd |awk '{print $$1}') -f
 
@@ -29,7 +30,7 @@ replace:
 check:./certdemo/templates/page4.html
 	@echo "page4.html ip replaced"
 
-etcd-cluster:etcd
+start-etcd:etcd
 	@echo "start etcd cluster"
 	docker-compose -f ./etcd/docker-compose.yaml up -d
 

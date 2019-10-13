@@ -7,8 +7,9 @@ import (
 func main(){
 	
 	var role = flag.String("role", "", "master | worker")
+	fmt.Println(role)
 	flag.Parse()
-	endpoints := []string{"http://106.15.46.11:32791"}
+	endpoints := []string{"http://106.15.46.11:23791"}
 	if *role == "master" {
 		master := NewMaster(endpoints)
 		master.WatchWorkers()
