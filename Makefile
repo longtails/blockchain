@@ -32,7 +32,7 @@ check:./certdemo/templates/page4.html
 
 start-etcd:etcd
 	@echo "start etcd cluster"
-	docker-compose -f ./etcd/docker-compose.yaml up -d
+	docker-compose -f ./etcd/etcd-cluster.yaml up -d
 
 
 help:
